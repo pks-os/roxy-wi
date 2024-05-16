@@ -56,13 +56,9 @@ def delete_user_groups(user_id):
 def update_user_current_groups(groups, user_uuid):
 	user_id = get_user_id_by_uuid(user_uuid)
 	try:
-		user_update = User.update(groups=groups).where(User.user_id == user_id)
-		user_update.execute()
+		User.update(groups=groups).where(User.user_id == user_id).execute()
 	except Exception as e:
 		out_error(e)
-		return False
-	else:
-		return True
 
 
 def update_user_current_groups_by_id(groups, user_id):
@@ -245,21 +241,32 @@ def get_user_id_by_username(username: str):
 
 
 def get_user_role_by_uuid(uuid, group_id):
-	query = (
-		UserGroups.select(UserGroups.user_role_id).join(UUID, on=(UserGroups.user_id == UUID.user_id)
+	try:
+		query_res = UserGroups.select(UserGroups.user_role_id).join(
+			UUID, on=(UserGroups.user_id == UUID.user_id)
 		).where(
 			(UUID.uuid == uuid) &
 			(UserGroups.user_group_id == group_id)
-		)
-	)
-
-	try:
-		query_res = query.execute()
+		).execute()
 	except Exception as e:
 		out_error(e)
 	else:
 		for user_id in query_res:
 			return int(user_id.user_role_id)
+
+
+def get_user_current_group_by_uuid(uuid):
+	try:
+		query_res = User.select(User.groups).join(
+			UUID, on=(User.user_id == UUID.user_id)
+		).where(
+			(UUID.uuid == uuid)
+		).execute()
+	except Exception as e:
+		out_error(e)
+	else:
+		for user_id in query_res:
+			return int(user_id.groups)
 
 
 def write_user_uuid(login, user_uuid):
