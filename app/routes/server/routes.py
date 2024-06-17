@@ -1,6 +1,6 @@
 import json
 
-from flask import render_template, request, g
+from flask import render_template, request, g, jsonify, abort
 from flask_login import login_required
 
 from app.routes.server import bp
@@ -73,181 +73,185 @@ def show_ip(server_id):
     return server_mod.ssh_command(server_ip.ip, commands, ip="1")
 
 
-@bp.post('/create')
+@bp.route('', methods=['POST', 'PUT', 'DELETE', 'PATCH'])
 @get_user_params()
 def create_server():
     roxywi_auth.page_for_admin(level=2)
-    hostname = common.checkAjaxInput(request.form.get('servername'))
-    ip = common.is_ip_or_dns(request.form.get('newip'))
-    group = common.checkAjaxInput(request.form.get('newservergroup'))
-    typeip = common.checkAjaxInput(request.form.get('typeip'))
-    haproxy = common.checkAjaxInput(request.form.get('haproxy'))
-    nginx = common.checkAjaxInput(request.form.get('nginx'))
-    apache = common.checkAjaxInput(request.form.get('apache'))
-    firewall = common.checkAjaxInput(request.form.get('firewall'))
-    enable = common.checkAjaxInput(request.form.get('enable'))
-    master = common.checkAjaxInput(request.form.get('slave'))
-    cred = common.checkAjaxInput(request.form.get('cred'))
-    page = common.checkAjaxInput(request.form.get('page'))
-    page = page.split("#")[0]
-    port = common.checkAjaxInput(request.form.get('newport'))
-    desc = common.checkAjaxInput(request.form.get('desc'))
-    add_to_smon = common.checkAjaxInput(request.form.get('add_to_smon'))
+    json_data = request.get_json()
     lang = roxywi_common.get_user_lang_for_flask()
+    if request.method in ('POST', 'PUT'):
+        hostname = common.checkAjaxInput(json_data['name'])
+        group = int(json_data['group'])
+        type_ip = int(json_data['type_ip'])
+        firewall = int(json_data['firewall'])
+        enable = int(json_data['enable'])
+        cred = int(json_data['cred'])
+        port = int(json_data['port'])
+        desc = common.checkAjaxInput(json_data['desc'])
+        master = int(json_data['slave'])
+        protected = int(json_data['protected'])
 
-    if ip == '':
-        return 'error: IP or DNS name is not valid'
-    try:
-        if server_mod.create_server(hostname, ip, group, typeip, enable, master, cred, port, desc, haproxy, nginx,
-                                    apache, firewall):
+    if request.method == 'POST':
+        ip = common.is_ip_or_dns(json_data['ip'])
+        haproxy = int(json_data['haproxy'])
+        nginx = int(json_data['nginx'])
+        apache = int(json_data['apache'])
+        add_to_smon = int(json_data['add_to_smon'])
+        if ip == '':
+            return jsonify({'status': 'failed','error': 'IP or DNS name is not valid'})
+        try:
+            last_id = server_mod.create_server(hostname, ip, group, type_ip, enable, master, cred, port, desc, haproxy, nginx, apache, firewall)
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot create server')
+
+        try:
+            user_subscription = roxywi_common.return_user_status()
+        except Exception as e:
+            user_subscription = roxywi_common.return_unsubscribed_user_status()
+            roxywi_common.logging('Roxy-WI server', f'Cannot get a user plan: {e}', roxywi=1)
+
+        if add_to_smon:
             try:
-                user_subscription = roxywi_common.return_user_status()
+                user_group = roxywi_common.get_user_group(id=1)
+                json_data = {
+                    "name": hostname,
+                    "ip": ip,
+                    "port": "0",
+                    "enabled": "1",
+                    "url": "",
+                    "body": "",
+                    "group": hostname,
+                    "desc": f"Ping {hostname}",
+                    "tg": "0",
+                    "slack": "0",
+                    "pd": "0",
+                    "resolver": "",
+                    "record_type": "",
+                    "packet_size": "56",
+                    "http_method": "",
+                    "check_type": "ping",
+                    "agent_id": "1",
+                    "interval": "120",
+                }
+                smon_mod.create_smon(json_data, user_group)
             except Exception as e:
-                user_subscription = roxywi_common.return_unsubscribed_user_status()
-                roxywi_common.logging('Roxy-WI server', f'Cannot get a user plan: {e}', roxywi=1)
+                roxywi_common.logging(ip, f'error: Cannot add server {hostname} to SMON: {e}', roxywi=1)
 
-            if add_to_smon:
-                try:
-                    user_group = roxywi_common.get_user_group(id=1)
-                    json_data = {
-                        "name": hostname,
-                        "ip": ip,
-                        "port": "0",
-                        "enabled": "1",
-                        "url": "",
-                        "body": "",
-                        "group": hostname,
-                        "desc": f"Ping {hostname}",
-                        "tg": "0",
-                        "slack": "0",
-                        "pd": "0",
-                        "resolver": "",
-                        "record_type": "",
-                        "packet_size": "56",
-                        "http_method": "",
-                        "check_type": "ping",
-                        "agent_id": "1",
-                        "interval": "120",
-                    }
-                    smon_mod.create_smon(json_data, user_group)
-                except Exception as e:
-                    roxywi_common.logging(ip, f'error: Cannot add server {hostname} to SMON: {e}', roxywi=1)
+        roxywi_common.logging(ip, f'A new server {hostname} has been created', roxywi=1, login=1, keep_history=1, service='server')
 
-            roxywi_common.logging(ip, f'A new server {hostname} has been created', roxywi=1, login=1, keep_history=1, service='server')
-
-            return render_template(
-                'ajax/new_server.html', groups=group_sql.select_groups(), servers=server_sql.select_servers(server=ip), lang=lang,
-                masters=server_sql.select_servers(get_master_servers=1), sshs=cred_sql.select_ssh(group=group), page=page,
-                user_subscription=user_subscription, adding=1
-            )
-    except Exception as e:
-        return f'{e}'
-
-
-@bp.post('/create/after')
-def after_add():
-    hostname = common.checkAjaxInput(request.form.get('servername'))
-    ip = common.is_ip_or_dns(request.form.get('newip'))
-    scan_server = common.checkAjaxInput(request.form.get('scan_server'))
-
-    try:
-        return server_mod.update_server_after_creating(hostname, ip, scan_server)
-    except Exception as e:
-        return str(e)
+        kwargs = {
+            'groups': group_sql.select_groups(),
+            'servers': server_sql.select_servers(server=ip),
+            'lang': lang,
+            'masters': server_sql.select_servers(get_master_servers=1),
+            'sshs': cred_sql.select_ssh(group=group),
+            'user_subscription': user_subscription,
+            'adding': 1
+        }
+        return jsonify({'status': 'created', 'id': last_id, 'data': render_template('ajax/new_server.html', **kwargs)})
+    elif request.method == 'PUT':
+        serv_id = int(json_data['id'])
+        if hostname is None or port is None:
+            return jsonify({'status': 'failed', 'error': 'Cannot find server ip or port'})
+        else:
+            try:
+                server_sql.update_server(hostname, group, type_ip, enable, master, serv_id, cred, port, desc, firewall, protected)
+            except Exception as e:
+                return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot update server')
+            server_ip = server_sql.select_server_ip_by_id(serv_id)
+            roxywi_common.logging(server_ip, f'The server {hostname} has been update', roxywi=1, login=1,
+                                  keep_history=1, service='server')
+        return jsonify({'status': 'updated'})
+    elif request.method == 'DELETE':
+        server_id = int(json_data['id'])
+        try:
+            server_mod.delete_server(server_id)
+            return jsonify({'status': 'deleted'})
+        except Exception as e:
+            roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot delete the server')
+    elif request.method == 'PATCH':
+        hostname = common.checkAjaxInput(json_data['name'])
+        ip = common.is_ip_or_dns(json_data['ip'])
+        scan_server = int(json_data['scan_server'])
+        try:
+            server_mod.update_server_after_creating(hostname, ip, scan_server)
+            return jsonify({'status': 'updated'})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot scan the server')
 
 
-@bp.post('/update')
-def update_server():
-    roxywi_auth.page_for_admin(level=2)
-    name = request.form.get('updateserver')
-    group = request.form.get('servergroup')
-    typeip = request.form.get('typeip')
-    firewall = request.form.get('firewall')
-    enable = request.form.get('enable')
-    master = int(request.form.get('slave'))
-    serv_id = request.form.get('id')
-    cred = request.form.get('cred')
-    port = request.form.get('port')
-    protected = request.form.get('protected')
-    desc = request.form.get('desc')
-
-    if name is None or port is None:
-        return error_mess
-    else:
-        server_sql.update_server(name, group, typeip, enable, master, serv_id, cred, port, desc, firewall, protected)
-        server_ip = server_sql.select_server_ip_by_id(serv_id)
-        roxywi_common.logging(server_ip, f'The server {name} has been update', roxywi=1, login=1, keep_history=1, service='server')
-
-    return 'ok'
-
-
-@bp.route('/delete/<int:server_id>')
-def delete_server(server_id):
-    roxywi_auth.page_for_admin(level=2)
-    return server_mod.delete_server(server_id)
-
-
-@bp.route('/group/create', methods=['POST'])
+@bp.route('/group', methods=['POST', 'PUT', 'DELETE'])
 def create_group():
     roxywi_auth.page_for_admin()
-    newgroup = common.checkAjaxInput(request.form.get('groupname'))
-    desc = common.checkAjaxInput(request.form.get('newdesc'))
-    if newgroup == '':
-        return error_mess
-    else:
+    json_data = request.get_json()
+    if request.method == 'POST':
+        name = json_data.get('name')
+        desc = json_data.get('desc')
+        if name == '':
+            return error_mess
         try:
-            if group_sql.add_group(newgroup, desc):
-                roxywi_common.logging('Roxy-WI server', f'A new group {newgroup} has been created', roxywi=1, login=1)
-                return render_template('ajax/new_group.html', groups=group_sql.select_groups(group=newgroup))
+            last_id = group_sql.add_group(name, desc)
+            roxywi_common.logging('Roxy-WI server', f'A new group {name} has been created', roxywi=1, login=1)
+            return jsonify({
+                'status': 'created',
+                'id': last_id,
+                'data': render_template('ajax/new_group.html', groups=group_sql.select_groups(group=name))}
+            )
         except Exception as e:
-            return str(e)
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot create a new group')
+    elif request.method == 'PUT':
+        name = json_data.get('name')
+        desc = json_data.get('desc')
+        group_id = json_data.get('group_id')
+        try:
+            group_mod.update_group(group_id, name, desc)
+            return jsonify({'status': 'updated'})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', f'Cannot update group {name}')
+    elif request.method == 'DELETE':
+        group_id = json_data.get('group_id')
+        try:
+            group_mod.delete_group(group_id)
+            return jsonify({'status': 'deleted'})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', f'Cannot delete {group_id}')
 
 
-@bp.route('/group/update', methods=['POST'])
-def update_group():
-    roxywi_auth.page_for_admin()
-    name = common.checkAjaxInput(request.form.get('updategroup'))
-    desc = common.checkAjaxInput(request.form.get('descript'))
-    group_id = common.checkAjaxInput(request.form.get('id'))
-
-    return group_mod.update_group(group_id, name, desc)
-
-
-@bp.route('/group/delete/<int:group_id>')
-def delete_group(group_id):
-    roxywi_auth.page_for_admin()
-    return group_mod.delete_group(group_id)
-
-
-@bp.route('/ssh/create', methods=['POST'])
+@bp.route('/ssh', methods=['POST', 'PUT', 'DELETE', 'PATCH'])
+@get_user_params()
 def create_ssh():
     roxywi_auth.page_for_admin(level=2)
-    return ssh_mod.create_ssh_cred()
+    json_data = request.get_json()
+    if request.method == 'POST':
+        try:
+            data = ssh_mod.create_ssh_cred(json_data)
+            return jsonify({'status': 'created', 'id': data['id'], 'data': data['template']})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot create SSH')
+    elif request.method == 'PUT':
+        try:
+            ssh_mod.update_ssh_key(json_data)
+            return jsonify({'status': 'updated'})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot update SSH')
+    elif request.method == 'DELETE':
+        ssh_id = int(json_data.get('id'))
+        try:
+            ssh_mod.delete_ssh_key(ssh_id)
+            return jsonify({'status': 'deleted'})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot delete SSH')
+    elif request.method == 'PATCH':
+        user_group = roxywi_common.get_user_group()
+        name = common.checkAjaxInput(json_data['name'])
+        passphrase = common.checkAjaxInput(json_data['pass'])
+        key = json_data['ssh_cert']
 
-
-@bp.route('/ssh/delete/<int:ssh_id>')
-def delete_ssh(ssh_id):
-    roxywi_auth.page_for_admin(level=2)
-    return ssh_mod.delete_ssh_key(ssh_id)
-
-
-@bp.route('/ssh/update', methods=['POST'])
-def update_ssh():
-    roxywi_auth.page_for_admin(level=2)
-    return ssh_mod.update_ssh_key()
-
-
-@bp.route('/ssh/upload', methods=['POST'])
-def upload_ssh_key():
-    user_group = roxywi_common.get_user_group()
-    name = common.checkAjaxInput(request.form.get('name'))
-    passphrase = common.checkAjaxInput(request.form.get('pass'))
-    key = request.form.get('ssh_cert')
-
-    try:
-        return ssh_mod.upload_ssh_key(name, user_group, key, passphrase)
-    except Exception as e:
-        return str(e)
+        try:
+            saved_path = ssh_mod.upload_ssh_key(name, user_group, key, passphrase)
+            return jsonify({'status': 'uploaded', 'message': saved_path})
+        except Exception as e:
+            return roxywi_common.handle_json_exceptions(e, 'Roxy-WI server', 'Cannot upload ssh')
 
 
 @bp.app_template_filter('string_to_dict')

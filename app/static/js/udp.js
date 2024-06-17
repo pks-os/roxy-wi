@@ -1,4 +1,3 @@
-var cancel_word = $('#translate').attr('data-cancel');
 $( function() {
 	$( "#ha-cluster" ).on('selectmenuchange',function()  {
 		let cluster_id = $( "#ha-cluster option:selected" ).val();
@@ -43,7 +42,6 @@ function getHAClusterVIPS(cluster_id) {
 				clearUdpVip();
 				$('#new-udp-vip').append('<option value="------" selected>------</option>')
 				data.forEach(function (obj) {
-					console.log(obj.vip);
 					$('#new-udp-vip').append('<option value="' + obj.id + '">' + obj.vip + '</option>')
 				});
 				$('#new-udp-vip').selectmenu("refresh");
@@ -53,7 +51,7 @@ function getHAClusterVIPS(cluster_id) {
 	return true;
 }
 function createUDPListener(edited=false, listener_id=0, clean=true) {
-	let next_word = $('#translate').attr('data-next');
+	let next_word = translate_div.attr('data-next');
 	let tabel_title = $("#create-udp-step-1-overview").attr('title');
 	clearListenerDialog();
 	if (edited) {
@@ -152,9 +150,8 @@ function createUDPListener(edited=false, listener_id=0, clean=true) {
 	dialog_div.dialog('open');
 }
 function createUDPListenerStep2(edited, listener_id, place) {
-	let save_word = $('#translate').attr('data-save');
-	let apply_word = $('#translate').attr('data-apply');
-	let back_word = $('#translate').attr('data-back');
+	let apply_word = translate_div.attr('data-apply');
+	let back_word = translate_div.attr('data-back');
 	let tabel_title = $("#create-udp-step-2-overview").attr('title');
 	if (edited) {
 		tabel_title = $("#create-udp-step-1-overview").attr('data-edit');
@@ -320,7 +317,8 @@ function saveUdpListener(jsonData, dialog_id, listener_id=0, edited=0, reconfigu
 function Reconfigure(listener_id) {
 	return $.ajax({
 		url: "/app/install/udp",
-		data: {listener_id: listener_id},
+		data: JSON.stringify({listener_id: listener_id}),
+		contentType: "application/json; charset=utf-8",
 		async: false,
 		type: "POST",
 		success: function (data) {
@@ -349,10 +347,9 @@ function getUDPListener(listener_id, new_listener=false) {
 			}
 		}
 	});
-	$.getScript("/app/static/js/fontawesome.min.js");
+	$.getScript(awesome);
 }
 function confirmDeleteListener(listener_id) {
-	let delete_word = $('#translate').attr('data-delete');
 	$("#dialog-confirm").dialog({
 		resizable: false,
 		height: "auto",
@@ -418,8 +415,7 @@ function clearUdpVip() {
 	$('#new-udp-vip').selectmenu();
 }
 function confirmUdpBalancerAction(action, listener_id) {
-	let action_word = $('#translate').attr('data-'+action);
-	console.log('#litener-name-'+listener_id);
+	let action_word = translate_div.attr('data-'+action);
 	let l_name = $('#listener-name-'+listener_id).text();
 	$( "#dialog-confirm" ).dialog({
 		resizable: false,
@@ -458,15 +454,15 @@ function ajaxActionListener(action, listener_id) {
     });
 }
 function createBackendServer(server='', port='', weight='1') {
-	let server_word = $('#translate').attr('data-server');
-	let port_word = $('#translate').attr('data-port');
-	let weight_word = $('#translate').attr('data-weight');
-	let delete_word = $('#translate').attr('data-delete');
+	let server_word = translate_div.attr('data-server');
+	let port_word = translate_div.attr('data-port');
+	let weight_word = translate_div.attr('data-weight');
+	let delete_word = translate_div.attr('data-delete');
 	$('<div class="servers">' +
 		server_word+': <input name="new-udp-server" value="' + server + '" class="form-control" placeholder="10.0.0.1">' +
 		port_word + ': <input name="new-udp-port" value="' + port + '" type="number" class="form-control" placeholder="443" style="width: 50px">' +
 		weight_word + ': <input name="new-udp-weight" value="' + weight + '" type="number" class="form-control" style="width: 30px">' +
 		'<span class="minus minus-style" title="'+delete_word+' '+server_word+'" onclick="$(this).parent().remove()"></span>' +
 		'</div>').insertBefore('.add-server');
-	$.getScript("/app/static/js/fontawesome.min.js");
+	$.getScript(awesome);
 }

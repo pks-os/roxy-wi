@@ -3,7 +3,6 @@
 {% block h2 %}{{ lang.ha_page.has }} {% endblock %}
 {% block content %}
 {% from 'include/input_macros.html' import input, checkbox, copy_to_clipboard %}
-<script src="/app/static/js/users.js"></script>
 <script src="/app/static/js/ha.js"></script>
 <script src="/app/static/js/overview.js"></script>
 <link href="{{ url_for('static', filename='css/servers.css') }}" rel="stylesheet"/>
@@ -111,6 +110,14 @@
             </td>
         </tr>
         <tr>
+            <td class="help_cursor">
+                <span title="{{lang.ha_page.use_src_help}}">{{ lang.ha_page.use_src }}</span>
+            </td>
+            <td class="help_cursor">
+                {{ checkbox('use_src', title=lang.ha_page.use_src_help) }}
+            </td>
+        </tr>
+        <tr>
             <td class="padding20 help_cursor"><span title="{{lang.ha_page.try_install}} HAProxy">HAProxy</span></td>
             <td class="help_cursor">{{ checkbox('hap', title=lang.ha_page.try_install+' HAProxy') }}</td>
         </tr>
@@ -167,6 +174,10 @@
         <tr>
             <td class="padding20 help_cursor"><span title="{{lang.ha_page.create_virt_server}}">{{lang.words.add|title()}} VIRT {{lang.words.server}}</span></td>
             <td class="help_cursor">{{ checkbox('vrrp-ip-add-virt_server', title=lang.ha_page.create_virt_server, checked='checked') }}</td>
+        </tr>
+        <tr>
+            <td class="padding20 help_cursor"><span title="{{lang.ha_page.use_src_help}}">{{ lang.ha_page.use_src }}</span></td>
+            <td class="help_cursor">{{ checkbox('vrrp-ip-add-use_src', title=lang.ha_page.use_src_help, checked='checked') }}</td>
         </tr>
     </table>
 </div>
