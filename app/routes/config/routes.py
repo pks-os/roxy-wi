@@ -5,6 +5,7 @@ from flask_login import login_required
 
 from app.routes.config import bp
 import app.modules.db.sql as sql
+import app.modules.db.user as user_sql
 import app.modules.db.config as config_sql
 import app.modules.db.server as server_sql
 import app.modules.db.service as service_sql
@@ -133,6 +134,7 @@ def config(service, serv, edit, config_file_name, new):
 
 @bp.route('/<service>/<server_ip>/save', methods=['POST'])
 @check_services
+@get_user_params()
 def save_config(service, server_ip):
     roxywi_common.check_is_server_in_group(server_ip)
     config_file = request.form.get('config')
@@ -318,6 +320,7 @@ def haproxy_section_show(server_ip, section):
 
 
 @bp.route('/section/haproxy/<server_ip>/save', methods=['POST'])
+@get_user_params()
 def haproxy_section_save(server_ip):
     hap_configs_dir = config_common.get_config_dir('haproxy')
     cfg = config_common.generate_config_path('haproxy', server_ip)
