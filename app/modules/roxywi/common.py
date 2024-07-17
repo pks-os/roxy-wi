@@ -1,6 +1,6 @@
 import os
 import glob
-from typing import Any
+from typing import Any, Union
 
 from flask import request
 
@@ -94,7 +94,7 @@ def get_files(folder, file_format, server_ip=None) -> list:
 		return file
 
 
-def logging(server_ip: str, action: str, **kwargs) -> None:
+def logging(server_ip: Union[str, int], action: str, **kwargs) -> None:
 	get_date = roxy_wi_tools.GetDate(get_setting('time_zone'))
 	cur_date_in_log = get_date.return_date('date_in_log')
 	log_path = get_config_var.get_config_var('main', 'log_path')
