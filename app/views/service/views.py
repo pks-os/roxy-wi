@@ -127,7 +127,10 @@ class ServiceView(MethodView):
                 data = ErrorResponse(error=str(e)).model_dump(mode='json')
         elif service == 'keepalived':
             cmd = "sudo /usr/sbin/keepalived -v 2>&1|head -1|awk '{print $2}'"
-            version = server_mod.ssh_command(server.ip, cmd)
+            try:
+                version = server_mod.ssh_command(server.ip, cmd)
+            except Exception as e:
+                return roxywi_common.handler_exceptions_for_json_data(e, 'Cannot get version')
             if version == '/usr/sbin/keepalived:\r\n':
                 return ErrorResponse(error='Cannot get keepalived').model_dump(mode='json')
             data = {'Version': version}
@@ -148,7 +151,7 @@ class ServiceView(MethodView):
 
 class ServiceActionView(MethodView):
     methods = ['GET']
-    decorators = [jwt_required(), get_user_params(), check_services, page_for_admin(level=3), check_group()]
+    decorators = [jwt_required(), get_user_params(), page_for_admin(level=3), check_group()]
 
     @staticmethod
     def get(service: str, server_id: Union[int, str], action: str):

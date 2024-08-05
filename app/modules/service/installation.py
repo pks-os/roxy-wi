@@ -318,11 +318,10 @@ def service_actions_after_install(server_ips: str, service: str, json_data) -> N
 			update_functions[service](server_ip)
 		except Exception as e:
 			roxywi_common.handle_exceptions(e, 'Roxy-WI server', f'Cannot activate {service} on server {server_ip}', roxywi=1)
-
 		if service != 'keepalived':
 			is_docker = json_data['services'][service]['docker']
 
-		if is_docker == '1' and service != 'keepalived':
+		if is_docker and service != 'keepalived':
 			service_sql.insert_or_update_service_setting(server_id, service, 'dockerized', '1')
 			service_sql.insert_or_update_service_setting(server_id, service, 'restart', '1')
 
@@ -339,12 +338,12 @@ def install_service(service: str, json_data: Union[str, ServiceInstall]) -> dict
 	try:
 		inv, server_ips = generate_functions[service](json_data, service)
 	except Exception as e:
-		roxywi_common.handle_exceptions(e, 'Roxy-WI server', f'Cannot generate inv {service}', roxywi=1)
+		raise Exception(f'Cannot generate inv {service}: {e}')
 	try:
 		service_actions_after_install(server_ips, service, json_data)
 		return run_ansible(inv, server_ips, service)
 	except Exception as e:
-		roxywi_common.handle_exceptions(e, 'Roxy-WI server', f'Cannot install {service}', roxywi=1)
+		raise Exception(f'Cannot install {service}: {e}')
 
 
 def _install_ansible_collections():

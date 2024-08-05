@@ -161,7 +161,7 @@ class HAClusterVIP(BaseModel):
     return_master: Optional[bool] = 1
     virt_server: Optional[bool] = 1
     router_id: Optional[int] = None
-    servers: Dict[int, HAClusterServer]
+    servers: List[HAClusterServer]
 
 
 class HAClusterRequest(BaseModel):
@@ -216,11 +216,9 @@ class ServiceInstall(BaseModel):
 
 
 class Checker(BaseModel):
-    server_id: int
     checker: Optional[bool] = 0
     metrics: Optional[bool] = 0
     auto_start: Optional[bool] = 0
-    service: Optional[bool] = 1
     telegram_id: Optional[int] = 0
     slack_id: Optional[int] = 0
     pd_id: Optional[int] = 0
