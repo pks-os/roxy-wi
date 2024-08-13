@@ -1,7 +1,6 @@
 import os
 import json
 from typing import Union
-
 from packaging import version
 
 import ansible
@@ -212,6 +211,7 @@ def run_ansible(inv: dict, server_ips: list, ansible_role: str) -> dict:
 	proxy = sql.get_setting('proxy')
 	proxy_serv = ''
 	tags = ''
+
 	try:
 		agent_pid = server_mod.start_ssh_agent()
 	except Exception as e:
