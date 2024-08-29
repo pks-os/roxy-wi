@@ -144,7 +144,6 @@ def update_vip(cluster_id: int, router_id: int, cluster: Union[HAClusterRequest,
             s = server_sql.get_server_by_id(value['id'])
             raise Exception(f'error: Cannot add server {s.hostname}: {e}')
 
-    print('cluster.virt_server',cluster.virt_server)
     if cluster.virt_server:
         add_or_update_virt(cluster, servers, cluster_id, vip_id, group_id)
     else:
@@ -277,19 +276,18 @@ def add_or_update_virt(cluster: Union[HAClusterRequest, HAClusterVIP], servers: 
 
 def _create_or_update_master_slaves_servers(cluster_id: int, servers: dict, router_id: int, create: bool = False) -> None:
     for server in servers:
-        if server['master']:
-            continue
-        try:
-            ha_sql.update_master_server_by_slave_ip(server['id'], server['ip'])
-        except Exception as e:
-            raise Exception(f'error: Cannot update master on slave {server["ip"]: {e}}')
-
-    for server in servers:
+        s = server_sql.get_server_by_id(server['id'])
         try:
             ha_sql.insert_or_update_slave(cluster_id, server['id'], server['eth'], server['master'], router_id)
             if create:
-                s = server_sql.get_server_by_id(server['id'])
                 roxywi_common.logging(cluster_id, f'New server {s.hostname} has been added to the cluster', keep_history=1,
                                   roxywi=1, service='HA cluster')
         except Exception as e:
-            raise Exception(f'error: Cannot update slave server {server["ip"]}: {e}')
+            raise Exception(f'error: Cannot update slave server {s.hostname}: {e}')
+
+        if server['master']:
+            continue
+        try:
+            ha_sql.update_master_server_by_slave_ip(server['id'], s.ip)
+        except Exception as e:
+            raise Exception(f'error: Cannot update master on slave {s.hostname: {e}}')
