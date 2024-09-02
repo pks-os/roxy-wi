@@ -338,20 +338,22 @@ function showConfig() {
 		}
 	}
 	clearAllAjaxFields();
+	let json_data = {
+		"serv": $("#serv").val(),
+		"service": service,
+		"config_file_name": config_file_name
+	}
 	$.ajax( {
 		url: "/config/" + service + "/show",
-		data: {
-			serv: $("#serv").val(),
-			service: service,
-			config_file_name: config_file_name
-		},
+		data: JSON.stringify(json_data),
 		type: "POST",
+		contentType: "application/json; charset=utf-8",
 		success: function( data ) {
-			if (data.indexOf('error:') != '-1') {
+			if (data.status === 'failed') {
 				toastr.error(data);
 			} else {
 				toastr.clear();
-				$("#ajax").html(data);
+				$("#ajax").html(data.data);
 				$.getScript(configShow);
 				window.history.pushState("Show config", "Show config", "/config/" + service + "/" + $("#serv").val() + "/show/" + config_file_name);
 			}
@@ -407,19 +409,21 @@ function showUploadConfig() {
 	let service = $('#service').val();
 	let configver = $('#configver').val();
 	let serv = $("#serv").val()
+	let jsonData = {
+		"serv": serv,
+		"configver": configver
+	}
 	$.ajax( {
 		url: "/config/" + service + "/show",
-		data: {
-			serv: serv,
-			configver: configver
-		},
+		data: JSON.stringify(jsonData),
+		contentType: "application/json; charset=utf-8",
 		type: "POST",
 		success: function( data ) {
-			if (data.indexOf('error:') != '-1') {
-				toastr.error(data);
+			if (data.status === 'failed') {
+				toastr.error(data.error);
 			} else {
 				toastr.clear();
-				$("#ajax").html(data);
+				$("#ajax").html(data.data);
 				window.history.pushState("Show config", "Show config", "/config/versions/" + service + "/" + serv + "/" + configver);
 				$.getScript(configShow);
 			}

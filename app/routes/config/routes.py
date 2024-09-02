@@ -34,12 +34,16 @@ def before_request():
 @bp.route('/<service>/show', methods=['POST'])
 @check_services
 def show_config(service):
-    config_file_name = request.form.get('config_file_name')
-    configver = request.form.get('configver')
-    server_ip = request.form.get('serv')
+    config_file_name = request.json.get('config_file_name')
+    configver = request.json.get('configver')
+    server_ip = request.json.get('serv')
     claims = get_jwt()
 
-    return config_mod.show_config(server_ip, service, config_file_name, configver, claims)
+    try:
+        data = config_mod.show_config(server_ip, service, config_file_name, configver, claims)
+        return DataStrResponse(data=data).model_dump(mode='json'), 200
+    except Exception as e:
+        return roxywi_common.handler_exceptions_for_json_data(e, '')
 
 
 @bp.route('/<service>/show-files', methods=['POST'])
@@ -48,7 +52,10 @@ def show_config_files(service):
     server_ip = request.form.get('serv')
     config_file_name = request.form.get('config_file_name')
 
-    return config_mod.show_config_files(server_ip, service, config_file_name)
+    try:
+        return config_mod.show_config_files(server_ip, service, config_file_name)
+    except Exception as e:
+        return f'error: {e}'
 
 
 @bp.route('/<service>/find-in-config', methods=['POST'])
@@ -88,14 +95,12 @@ def config(service, serv, edit, config_file_name, new):
     is_serv_protected = ''
     new_config = new
 
-    if serv and config_file_name:
-        cfg = config_mod.return_cfg(service, serv, config_file_name)
-
     if serv and edit and new_config is None:
         roxywi_common.check_is_server_in_group(serv)
         is_serv_protected = server_sql.is_serv_protected(serv)
         server_id = server_sql.select_server_id_by_ip(serv)
         is_restart = service_sql.select_service_setting(server_id, service, 'restart')
+        cfg = config_mod.return_cfg(service, serv, config_file_name)
 
         try:
             error = config_mod.get_config(serv, cfg, service=service, config_file_name=config_file_name)
