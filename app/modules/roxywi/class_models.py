@@ -46,6 +46,10 @@ class IdResponse(BaseResponse):
     id: int
 
 
+class IdStrResponse(BaseResponse):
+    id: str
+
+
 class IdDataResponse(IdResponse):
     data: str
 
@@ -217,12 +221,13 @@ class ServerInstall(BaseModel):
 
 class ServiceInstall(BaseModel):
     cluster_id: Optional[int] = None
-    servers: List[ServerInstall]
-    services: Dict[str, HAClusterService]
+    servers: Optional[List[ServerInstall]] = None
+    services: Optional[Dict[str, HAClusterService]] = None
     checker: Optional[bool] = 0
     metrics: Optional[bool] = 0
     auto_start: Optional[bool] = 0
     syn_flood: Optional[bool] = 0
+    docker: Optional[bool] = 0
 
 
 class Checker(BaseModel):
