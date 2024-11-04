@@ -51,8 +51,8 @@ def return_ssh_keys_path(server_ip: str, cred_id: int = None) -> dict:
 		ssh_settings.setdefault('passphrase', passphrase)
 
 	try:
-		ssh_port = [str(server[10]) for server in server_sql.select_servers(server=server_ip)]
-		ssh_settings.setdefault('port', ssh_port[0])
+		server = server_sql.get_server_by_ip(server_ip)
+		ssh_settings.setdefault('port', server.port)
 	except Exception as e:
 		raise Exception(f'error: Cannot get SSH port: {e}')
 
@@ -99,21 +99,22 @@ def upload_ssh_key(ssh_id: int, key: str, passphrase: str) -> None:
 	name = ssh.name
 	ssh_keys = f'{full_dir}{name}_{group_name}.pem'
 
-	if key != '':
-		try:
-			key = paramiko.pkey.load_private_key(key, password=passphrase)
-		except Exception as e:
-			raise Exception(e)
+	if key == '':
+		raise ValueError('Private key cannot be empty')
+	try:
+		key = paramiko.pkey.load_private_key(key, password=passphrase)
+	except Exception as e:
+		raise e
 
-		try:
-			key.write_private_key_file(ssh_keys)
-		except Exception as e:
-			raise Exception(e)
+	try:
+		key.write_private_key_file(ssh_keys)
+	except Exception as e:
+		raise e
 
-		try:
-			os.chmod(ssh_keys, 0o600)
-		except IOError as e:
-			raise Exception(e)
+	try:
+		os.chmod(ssh_keys, 0o600)
+	except IOError as e:
+		raise Exception(e)
 
 	if passphrase:
 		try:
@@ -242,8 +243,6 @@ def get_creds(group_id: int = None, cred_id: int = None, not_shared: bool = Fals
 def _return_correct_ssh_file(cred: CredRequest) -> str:
 	lib_path = get_config.get_config_var('main', 'lib_path')
 	group_name = group_sql.get_group_name_by_id(cred.group_id)
-	# if not cred.key_enabled:
-	# 	return ''
 	if group_name not in cred.name:
 		return f'{lib_path}/keys/{cred.name}_{group_name}.pem'
 	else:
