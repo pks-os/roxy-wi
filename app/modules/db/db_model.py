@@ -149,30 +149,17 @@ class PD(BaseModel):
         table_name = 'pd'
 
 
-class ApiToken(BaseModel):
-    token = CharField()
-    user_name = CharField()
-    user_group_id = IntegerField()
-    user_role = IntegerField()
-    create_date = DateTimeField(default=datetime.now)
-    expire_date = DateTimeField(default=datetime.now)
-
-    class Meta:
-        table_name = 'api_tokens'
-        primary_key = False
-
-
 class Setting(BaseModel):
     param = CharField()
     value = CharField(null=True)
     section = CharField()
     desc = CharField()
-    group = IntegerField(null=True, constraints=[SQL('DEFAULT 1')])
+    group_id = IntegerField(null=True, constraints=[SQL('DEFAULT 1')])
 
     class Meta:
         table_name = 'settings'
         primary_key = False
-        constraints = [SQL('UNIQUE (param, `group`)')]
+        constraints = [SQL('UNIQUE (param, group_id)')]
 
 
 class Groups(BaseModel):
@@ -804,7 +791,7 @@ def create_tables():
     conn = connect()
     with conn:
         conn.create_tables(
-            [User, Server, Role, Telegram, Slack, ApiToken, Groups, UserGroups, ConfigVersion, Setting, RoxyTool, Alerts,
+            [User, Server, Role, Telegram, Slack, Groups, UserGroups, ConfigVersion, Setting, RoxyTool, Alerts,
              Cred, Backup, Metrics, WafMetrics, Version, Option, SavedServer, Waf, ActionHistory, PortScannerSettings,
              PortScannerPorts, PortScannerHistory, ServiceSetting, MetricsHttpStatus, SMON, WafRules, GeoipCodes,
              NginxMetrics, SystemInfo, Services, UserName, GitSetting, CheckerSetting, ApacheMetrics, WafNginx, ServiceStatus,
